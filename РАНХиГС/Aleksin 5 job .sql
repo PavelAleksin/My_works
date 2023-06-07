@@ -1,20 +1,20 @@
-1.Написать SQL скрипт для создния таблицы "STUDENTS" с полями
-	firstname - имя
-	lastname - фамилия
-	date_of_birth - дата рождения
-2.Написать SQL скрипт для создания таблицы "FACULTIES" с полями name
-3.Написать SQL скрипт, создающий в обеих таблицах основной (PRIMARY) ключ
-4.Написать SQL скрипт, создающий в в таблице STUDENTS поле FACULTY и внешний ключ для связи этого поля с таблицей
+1.РќР°РїРёСЃР°С‚СЊ SQL СЃРєСЂРёРїС‚ РґР»СЏ СЃРѕР·РґРЅРёСЏ С‚Р°Р±Р»РёС†С‹ "STUDENTS" СЃ РїРѕР»СЏРјРё
+	firstname - РёРјСЏ
+	lastname - С„Р°РјРёР»РёСЏ
+	date_of_birth - РґР°С‚Р° СЂРѕР¶РґРµРЅРёСЏ
+2.РќР°РїРёСЃР°С‚СЊ SQL СЃРєСЂРёРїС‚ РґР»СЏ СЃРѕР·РґР°РЅРёСЏ С‚Р°Р±Р»РёС†С‹ "FACULTIES" СЃ РїРѕР»СЏРјРё name
+3.РќР°РїРёСЃР°С‚СЊ SQL СЃРєСЂРёРїС‚, СЃРѕР·РґР°СЋС‰РёР№ РІ РѕР±РµРёС… С‚Р°Р±Р»РёС†Р°С… РѕСЃРЅРѕРІРЅРѕР№ (PRIMARY) РєР»СЋС‡
+4.РќР°РїРёСЃР°С‚СЊ SQL СЃРєСЂРёРїС‚, СЃРѕР·РґР°СЋС‰РёР№ РІ РІ С‚Р°Р±Р»РёС†Рµ STUDENTS РїРѕР»Рµ FACULTY Рё РІРЅРµС€РЅРёР№ РєР»СЋС‡ РґР»СЏ СЃРІСЏР·Рё СЌС‚РѕРіРѕ РїРѕР»СЏ СЃ С‚Р°Р±Р»РёС†РµР№
 
---создаем схему УНИВЕР--
+--СЃРѕР·РґР°РµРј СЃС…РµРјСѓ РЈРќРР’Р•Р --
 
-create schema УНИВЕР
+create schema РЈРќРР’Р•Р 
 ;
 
---Добавил выбор схемы
-set search_path to УНИВЕР;
+--Р”РѕР±Р°РІРёР» РІС‹Р±РѕСЂ СЃС…РµРјС‹
+set search_path to РЈРќРР’Р•Р ;
 
---создаем таблицу STUDENTS--
+--СЃРѕР·РґР°РµРј С‚Р°Р±Р»РёС†Сѓ STUDENTS--
 create table STUDENTS(
 	firstname  varchar,
 	lastname   varchar,
@@ -22,13 +22,13 @@ create table STUDENTS(
 	)
 ;
 
---создаем таблицу FACULTIES--
+--СЃРѕР·РґР°РµРј С‚Р°Р±Р»РёС†Сѓ FACULTIES--
 create table FACULTIES
 	(Name varchar
 	)
 ;
 
---Создаем Первичный ключ(Primary rey) для обеих таблиц--
+--РЎРѕР·РґР°РµРј РџРµСЂРІРёС‡РЅС‹Р№ РєР»СЋС‡(Primary rey) РґР»СЏ РѕР±РµРёС… С‚Р°Р±Р»РёС†--
 alter table students
 add id int primary key
 ;
@@ -37,12 +37,12 @@ alter table faculties
 add constraint univer_pkey_name primary key (name)
 ;
 
---Добавляем поле FACULTY--
+--Р”РѕР±Р°РІР»СЏРµРј РїРѕР»Рµ FACULTY--
 alter table students 
 add faculty varchar
 ;
 
---добавляем внешний ключ для поля FACULTY на связь с таблицей--
+--РґРѕР±Р°РІР»СЏРµРј РІРЅРµС€РЅРёР№ РєР»СЋС‡ РґР»СЏ РїРѕР»СЏ FACULTY РЅР° СЃРІСЏР·СЊ СЃ С‚Р°Р±Р»РёС†РµР№--
 alter table students 
 add constraint foreign_key1
 foreign key (faculty) 
