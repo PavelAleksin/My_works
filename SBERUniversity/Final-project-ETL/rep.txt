@@ -1,0 +1,38 @@
+Запуск скрипта:2023-03-22 23:14:33.758848
+Подключение edu успешно!
+autocommit: False
+Подключение bank успешно!
+autocommit: False
+Таблицы созданы: Продолжаем.
+Таблица ['alpa_stg_accounts'] очищена
+Таблица ['alpa_stg_accounts_del'] очищена
+Таблица ['alpa_stg_cards'] очищена
+Таблица ['alpa_stg_cards_del'] очищена
+Таблица ['alpa_stg_clients'] очищена
+Таблица ['alpa_stg_clients_del'] очищена
+Таблица ['alpa_stg_passport_blacklist'] очищена
+Таблица ['alpa_stg_terminals'] очищена
+Таблица ['alpa_stg_terminals_del'] очищена
+Таблица ['alpa_stg_transactions'] очищена
+Файл:terminals_03032021.xlsx от 2021-03-03 00:00:00 записан.
+Файл:terminals_03032021.xlsx -> перенесён в архив
+Файл:passport_blacklist_03032021.xlsx от 2021-03-03 00:00:00 записан.
+Файл:passport_blacklist_03032021.xlsx -> перенесён в архив
+Файл:transactions_03032021.txt от 2021-03-03 00:00:00 записан.
+Файл:transactions_03032021.txt -> перенесён в архив
+Данные из bank.accounts записаны.
+Данные из bank.cards записаны.
+Данные из bank.clients записаны.
+Выполнено: accounts_load
+Выполнено: cards_load
+Выполнено: clients_load
+Выполнено: transactions_load
+Выполнено: passports_load
+Выполнено: terminals_load
+Выполнено: rep_fraud_load.sql
+Отчёт построен от: 2023-03-22 23:14:38.026123
+Выполнение началось:2023-03-22 23:14:33.758848 
+Закончили: 2023-03-22 23:14:38.038159
+Длительность: 4.279310941696167
+Очёт отправлен в телеграмм
+Good day and Good luck !

@@ -1,0 +1,1 @@
+0 1 * * * ./main.py > rep.txt && ./teleg.py

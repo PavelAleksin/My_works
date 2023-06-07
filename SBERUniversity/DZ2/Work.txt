@@ -1,0 +1,198 @@
+CREATE TABLE de12.alpa_department(
+		Department int PRIMARY KEY,
+		Department_name varchar(17) NOT NULL,
+		CHECK (Department >=1))
+;
+
+
+INSERT INTO de12.alpa_department(Department,Department_name)
+VALUES 
+	(1,'Trade-IN'),
+	(2,'Новые автомобили')
+;
+	
+CREATE TABLE de12.alpa_phone_department(
+		Department int NOT NULL ,
+		Phone varchar (10) NOT NULL UNIQUE,
+		CHECK (Department>=1),
+		CONSTRAINT Phon_forg FOREIGN KEY (Department) REFERENCES  de12.alpa_department(Department))
+;
+
+
+INSERT INTO de12.alpa_phone_department(Department,Phone)
+VALUES 
+	(1,4105),
+	(2,6431),
+	(1,6223)
+;
+
+
+CREATE TABLE de12.alpa_empoloyees(
+		ID_Employee int PRIMARY KEY,
+		Surname varchar(10) NOT NULL,
+		Name varchar(10) NOT NULL,
+		Patronymic varchar(10) null,
+		Department int NOT NULL,
+		CHECK (Department>=1),
+		CONSTRAINT Phon_forg FOREIGN KEY (Department) REFERENCES  de12.alpa_department(Department))
+;
+
+
+INSERT INTO de12.alpa_empoloyees(ID_Employee,Surname,Name,Patronymic,Department)
+VALUES 
+	(1,'Петров','Петр','Иванович',1),
+	(2,'Иванов','Иван','Иванович',2),
+	(3,'Смирнов','Дмитрий','Дмитриевич',1),
+	(4,'Рыбов','Максим','Максимович',2)
+;
+
+
+CREATE TABLE de12.alpa_phone_employees(
+		Employee int NOT NULL,
+		Mob_phone bigint NOT NULL UNIQUE,
+		Home_phone bigint NULL UNIQUE,
+		CHECK (Employee>=1),
+		CHECK((length(Mob_phone::varchar)>=1) AND (length(Mob_phone::varchar)=11)),
+		CHECK((length(Home_phone::varchar)>=1) AND (length(Home_phone::varchar)=11)),
+		CONSTRAINT Phon_forg FOREIGN KEY (Employee) REFERENCES  de12.alpa_empoloyees(ID_Employee))
+;
+
+
+INSERT INTO de12.alpa_phone_employees(Employee,Mob_phone,Home_phone)
+VALUES 
+	(1,89991234564,null),
+	(1,89045124565,null),
+	(2,89112461346,81234567891),
+	(3,89430342646,null),
+	(4,89641333434,null),
+	(4,89316664616,84958474581)
+;
+
+
+CREATE TABLE de12.alpa_clients(
+		ID_Client int PRIMARY KEY,
+		Surname varchar(15) NOT NULL ,
+		Name varchar(15) NOT NULL,
+		Patronymic varchar(15)NULL,
+		CHECK (ID_Client>=1))
+;
+
+
+INSERT INTO de12.alpa_clients(ID_Client,Surname,Name,Patronymic)
+VALUES 
+	(1,'Буднев','Виктор','Викторович'),
+	(2,'Овсянников','Игорь','Петрович'),
+	(3,'Солнышкова','Светлана','Максимовна'),
+	(4,'Оладушкин','Илья','Игорьевич'),
+	(5,'Максимов','Максим','Максимович')
+;
+
+
+CREATE TABLE de12.alpa_phone_clients(
+		Client int NOT NULL,
+		Mob_phone bigint NOT NULL UNIQUE,
+		Home_phone bigint NULL UNIQUE,
+		CHECK((length(Mob_phone::varchar)>=1) AND (length(Mob_phone::varchar)=11)),
+		CHECK((length(Home_phone::varchar)>=1) AND (length(Home_phone::varchar)=11)),
+		CHECK (Client>=1),
+		CONSTRAINT Phon_forg FOREIGN KEY (Client) REFERENCES  de12.alpa_clients(ID_Client))
+;
+
+
+INSERT INTO de12.alpa_phone_clients(Client,Mob_phone,Home_phone)
+VALUES 
+	(1,89656546685,85681646464),
+	(1,89652742584,null),
+	(2,89116328795,82154665464),
+	(3,89040562635,84956516566),
+	(4,89665876521,null),
+	(4,89056528491,84244648666),
+	(5,89784526582,84956016511),
+	(5,86329574156,null)
+;
+
+
+CREATE TABLE de12.alpa_contract(
+		Contract int PRIMARY KEY,
+		ID_Employee int NOT NULL ,
+		Date_sales date NOT NULL,
+		Client int NOT NULL, 
+		CHECK (ID_Employee>=1),
+		CHECK (Contract>=1),
+		CHECK (Client>=1),
+		CHECK (Date_sales<=current_date),
+		CONSTRAINT Forg_Empl FOREIGN KEY (ID_Employee) REFERENCES  de12.alpa_empoloyees(ID_Employee),
+		CONSTRAINT Forg_Clie FOREIGN KEY (Client) REFERENCES  de12.alpa_clients(ID_Client))
+;
+
+
+INSERT INTO de12.alpa_contract(Contract,ID_Employee,Date_sales,Client)
+VALUES 
+	(52331413,1,'2020-10-05',1),
+	(41226543,2,'2020-06-20',2),
+	(65336445,2,'2020-06-25',3),
+	(28622625,4,'2020-07-15',4),
+	(14145544,3,'2020-08-14',5)
+;
+
+
+CREATE TABLE de12.alpa_sale_car(
+		Contract int PRIMARY KEY,
+		Vin varchar(17)NOT NULL UNIQUE,
+		Brand varchar(17) NOT null,
+		Model varchar(17)NOT NULL ,
+		Release int NOT NULL ,
+		Color varchar(17) NOT null,
+		Price int NOT NULL
+		CHECK(Contract>=1),
+		CHECK((length(Vin)>=1) AND (length(Vin)=17)),
+		CONSTRAINT Forg_contr FOREIGN KEY (Contract) REFERENCES de12.alpa_contract(Contract))
+;
+
+
+INSERT INTO de12.alpa_sale_car(Contract,Vin,Brand,Model,Release,Color,Price)
+VALUES 
+	(52331413,'1KLBN52TWXM186109','OPEL','Astra B',2000,'Синий',500000),
+	(41226543,'XTA210990Y2718377','Lada','Xray',2020,'Белый',800000),	
+	(65336445,'XTA210990Y2713552','Lada','NIVA',2020,'Красный',650000),
+	(28622625,'ХТА21150053977206','Lada','Largus',2020,'Белый',1000000),
+	(14145544,'WBACA91090JF13562','BMW','318i',2010,'Серебристый',750000)
+;	
+
+
+CREATE TABLE de12.alpa_parking(
+		ID int PRIMARY key,
+		Place int NOT NULL,
+		CHECK ((length(Place::varchar)>=1) AND (length(Place::varchar)<10))) --Так как парковок только 10 штук
+;
+
+
+INSERT INTO de12.alpa_parking(ID,Place)
+VALUES 
+	(1,1),
+	(2,3),
+	(3,4),
+	(4,6)
+;
+
+CREATE TABLE de12.alpa_car_presence(
+		Vin varchar(17)PRIMARY KEY,
+		Brand varchar(17) NOT null,
+		Model varchar(17)NOT NULL ,
+		Release int NOT NULL ,
+		Color varchar(17) NOT null,
+		Price int NOT NULL,
+		Place int NOT NULL UNIQUE,
+		CHECK((length(Vin)>=1) AND (length(Vin)=17)),
+		CHECK (Price>=1),
+		CONSTRAINT Forg_park FOREIGN KEY (Place) REFERENCES de12.alpa_parking(ID))
+;
+
+
+INSERT INTO de12.alpa_car_presence(Vin,Brand,Model,Release,Color,Price,Place)
+VALUES 
+	('XTA217050H0542253','Lada','Largus',2020,'Белый',1100000,1),
+	('XTA21703080127417','Lada','Granta',2019,'Синий',650000,2),
+	('XTA21099023219464','Lada','Xray',2020,'Оранжевый',800000,3),
+	('XTA217130C0080003','Lada','Largus',2020,'Серебристый',1150000,4)
+;

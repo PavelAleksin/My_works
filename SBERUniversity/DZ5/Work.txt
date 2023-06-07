@@ -1,0 +1,230 @@
+#!/usr/bin/python3
+
+import psycopg2
+import pandas as pd
+
+# Создание подключения к PostgreSQL
+conn = psycopg2.connect(database = "edu",
+                        host =     "de-edu-db.chronosavant.ru",
+                        user =     "de12",
+                        password = "sarumanthewhite",
+                        port =     "5432")
+
+# Отключение автокоммита
+conn.autocommit = False
+
+# Создание курсора
+cursor = conn.cursor()
+
+# drop table(чтоб небыло проблем при проверке)
+cursor.execute( "DROP TABLE de12.alpa_med_easy" )
+
+# Создание таблицы внутри базы данных EASY
+cursor.execute( "CREATE TABLE de12.alpa_med_easy(patid  int, assay  varchar(20), value numeric)" )
+
+# Чтение из файла лист EASY
+df = pd.read_excel( 'medicine.xlsx', sheet_name='easy', header=0, index_col=None )
+
+# Запись DataFrame в таблицу базы данных
+cursor.executemany( "INSERT INTO de12.alpa_med_easy ( patid, assay,value) VALUES( %s, %s,%s )", df.values.tolist() )
+conn.commit()
+
+# drop table(чтоб небыло проблем при проверке)
+cursor.execute( "DROP TABLE de12.alpa_med_hard" )
+
+# Создание таблицы внутри базы данных HARD
+cursor.execute( "CREATE TABLE de12.alpa_med_hard(patid  int, assay  varchar(20), value numeric )" )
+
+# Чтение из файла лист HARD
+df = pd.read_excel( 'medicine.xlsx', sheet_name='hard', header=0, index_col=None )
+
+#Меняем строковые значение на 10-положительно,20-отрицательно'
+df['Значение']=df['Значение'].replace('^[Пп].+','10',regex=True).replace('[+]','10',regex=True)
+df['Значение']=df['Значение'].replace('^[Оо].+','20',regex=True).replace('[-]','20',regex=True)
+
+# Запись DataFrame в таблицу базы данных
+cursor.executemany( "INSERT INTO de12.alpa_med_hard ( patid, assay,value) VALUES( %s, %s,%s )", df.values.tolist() )
+conn.commit()
+
+#Проверка записи в таблицу de12.alpa_med_easy
+print('Читаем из таблицы de12.alpa_med_easy')
+
+# Выполнение SQL кода в базе данных с возвратом результата(поставил Fetchall для проверки если данных много то лучше fetchone)
+cursor.execute( "SELECT * FROM de12.alpa_med_easy" )
+records = cursor.fetchall()
+for row in records:
+	print(row)
+
+#Проверка записи в таблицу de12.alpa_med_hard 
+print('Читаем из таблицы de12.alpa_med_hard')
+
+# Выполнение SQL кода в базе данных с возвратом результата(поставил Fetchall для проверки если данных много то лучше fetchone)
+cursor.execute( "SELECT * FROM de12.alpa_med_hard" )
+records = cursor.fetchall()
+for row in records:
+        print(row)
+
+#Проверка 1 скрипта
+print('Первый файл  Excel')
+
+# # Выполнение SQL кода в базе данных с возвратом результата
+cursor.execute('''
+select  phone,
+        mn.name,
+        man.name,
+        coalesce ((case when value < man.min_value then 'Понижен'
+                        when value> man.max_value then 'Повышен'
+                        when value = man.min_value then 'Минимальное допустимое значение'
+                        when value = man.max_value then 'Максимальное допустимое значение'
+                        when (value > man.min_value) and (value <man.max_value) then'В пределах нормы'
+                  end),'Результат отсутсвует!') as outcome
+from de12.alpa_med_easy ame left join de.med_an_name man on man.id=ame.assay
+     left join de.med_name mn on mn.id=ame.patid; ''' )
+records2=cursor.fetchall()
+for row in records2:
+	print(row)
+
+# Формирование DataFrame
+names = [ x[0] for x in cursor.description ]
+df = pd.DataFrame(records2, columns = names )
+
+# Запись в файл
+df.to_excel( 'MedresultEasyMY.xlsx', sheet_name='EasyMY', header=True, index=False )
+
+#ПОДТВЕРДИТЬ
+conn.commit()
+
+# Коментарий на 2 скрипт
+print('Второй файл Excel')
+
+# # Выполнение SQL кода в базе данных с возвратом результата
+cursor.execute('''
+with tab1 as (select phone,
+	  	     mn.name,
+	             man.name,
+	  	     value,
+	             case  when value < man.min_value then 'Понижен'
+		           when value> man.max_value then 'Повышен'
+	             end as outcome
+	      from de12.alpa_med_easy ame left join de.med_an_name man on man.id=ame.assay 
+	      left join de.med_name mn on mn.id=ame.patid)
+select *
+from tab1
+where outcome is not null; ''' )
+records3=cursor.fetchall()
+for row in records3:
+        print(row)
+
+# Формирование DataFrame
+names = [ x[0] for x in cursor.description ]
+df2 = pd.DataFrame(records3, columns = names )
+
+# Добавление в файл
+df2.to_excel( 'MedresultEasyDZ.xlsx', sheet_name='EasyDZ', header=True, index=False )
+
+#ПОДТВЕРДИТЬ
+conn.commit()
+
+# Коментарий на 3 скрипт
+print('Третий файл Excel')
+
+# # Выполнение SQL кода в базе данных с возвратом результата
+cursor.execute('''
+WITH tab1 AS (SELECT t.phone as phone,
+	             t.client AS client,
+	             t.test AS test,
+	             t.outcome AS outcome,
+	             count(t.outcome) OVER (PARTITION BY t.client ORDER BY t.client) AS totaltest
+              from(select mn.name AS client,
+	                  mn.phone AS phone,
+	                  man.name AS test,
+	                  coalesce ((case when man.is_simple = 'N' AND value < man.min_value then 'Понижен'
+	  		                  when man.is_simple = 'N' AND value> man.max_value then 'Повышен'
+			                  when man.is_simple = 'N' AND value = man.min_value then 'Минимальное допустимое значение'
+			                  when man.is_simple = 'N' AND value = man.max_value then 'Максимальное допустимое значение'
+			                  when man.is_simple = 'N' AND (value > man.min_value) and (value <man.max_value) then'В пределах нормы'
+			                  when man.is_simple = 'Y' AND value = 20 then 'Отрицательно'
+			                  when man.is_simple = 'Y' AND value = 10 then 'Положительно'
+		                          end),'Результат отсутсвует!') as outcome
+                  from de12.alpa_med_hard ame left join de.med_an_name man on man.id=ame.assay
+	               left join de.med_name mn on mn.id=ame.patid) AS t
+                  WHERE t.outcome IN ('Понижен','Повышен','Положительно'))
+SELECT phone,
+       client,
+       test,
+       outcome
+FROM tab1
+WHERE totaltest>=2;
+ ''' )
+records4=cursor.fetchall()
+for row in records4:
+        print(row)
+
+# Формирование DataFrame
+names = [ x[0] for x in cursor.description ]
+df3 = pd.DataFrame(records4, columns = names )
+
+# Добавление в файл
+df3.to_excel( 'MedresultHardDZ.xlsx', sheet_name='EasyDZ', header=True, index=False )
+
+#ПОДТВЕРДИТЬ
+conn.commit()
+
+# drop table(чтоб небыло проблем при проверке)
+cursor.execute( "DROP TABLE de12.alpa_med_results" )
+
+# Создание таблицы внутри базы данных Results
+cursor.execute( '''CREATE TABLE de12.alpa_med_results ( phone varchar,client varchar,test varchar, outcome varchar)''' )
+
+# Коментарий на 4 скрипт
+print('Данные в таблицу de12.alpa_med_results')
+
+# # Выполнение SQL кода в базе данных с возвратом результата
+cursor.execute('''
+select mn.phone AS phone,
+       mn.name AS clinet,
+       man.name AS test,
+       coalesce ((case when man.is_simple = 'N' AND value < man.min_value then 'Понижен'
+		       when man.is_simple = 'N' AND value> man.max_value then 'Повышен'
+		       when man.is_simple = 'N' AND value = man.min_value then 'Минимальное допустимое значение'
+		       when man.is_simple = 'N' AND value = man.max_value then 'Максимальное допустимое значение'
+		       when man.is_simple = 'N' AND (value > man.min_value) and (value <man.max_value) then'В пределах нормы'
+		       when man.is_simple = 'Y' AND value = 20 then 'Отрицательно'
+		       when man.is_simple = 'Y' AND value = 10 then 'Положительно'
+		  end),'Результат отсутсвует!') as outcome
+from de12.alpa_med_hard ame
+     left join de.med_an_name man
+     on man.id=ame.assay
+     left join de.med_name mn
+     on mn.id=ame.patid;
+ ''' )
+records5=cursor.fetchall()
+for row in records5:
+	print(row)
+
+# Формирование DataFrame
+names = [ x[0] for x in cursor.description ]
+df4 = pd.DataFrame(records5, columns = names )
+
+
+# Запись DataFrame в таблицу базы данных
+cursor.executemany( "INSERT INTO de12.alpa_med_results ( phone,client,test,outcome) VALUES( %s, %s,%s,%s )", df4.values.tolist() )
+conn.commit()
+
+# Закрываем соединение
+cursor.close()
+conn.close()
+
+print('''
+Создано 3 файла:
+		MedresultEasyMY.xlsx
+	 	MedresultEasyDZ.xlsx
+	 	MedresultHardDZ.xlsx
+Создано 3 таблицы:
+ 		de12.alpa_med_easy
+	        de12.alpa_med_hard	
+		de12.alpa_med_results ''')
+print('''
+Задача успешно выполнена!
+Хорошего дня,GOOD LUCK!
+''')

@@ -1,0 +1,170 @@
+
+--Удаление всех таблиц
+drop table if exists de12.alpa_stg;
+drop table if exists de12.alpa_source;
+drop table if exists de12.alpa_target;
+drop table if exists de12.alpa_stg_del;
+drop table if exists de12.alpa_meta; 
+
+--Создаем таблицу источник
+create table if not exists de12.alpa_source( 
+	id int8,
+	val varchar(50),
+	update_dt timestamp(0)
+);
+
+
+--Создаем таблицу временого хранилища
+create table if not exists de12.alpa_stg( 
+	id integer,
+	val varchar(50),
+	update_dt timestamp(0)
+);
+
+--Создаем таблицу удаленных файлов
+create table if not exists de12.alpa_stg_del( 
+	id int8
+);
+
+--Создаем таблицу хранилища
+create table if not exists de12.alpa_target (
+	id int8,
+	val varchar(50),
+	start_dt timestamp(0),
+	end_dt timestamp(0),
+delete_flg int2 default 0
+);
+--Создаем таблицу метаданных
+create table if not exists de12.alpa_meta(
+    schema_name varchar(30),
+    table_name varchar(30),
+    max_update_dt timestamp(0)
+);
+
+--Удаление данных из таблиц
+delete from de12.alpa_source;
+delete from de12.alpa_stg;
+delete from de12.alpa_target;
+delete from de12.alpa_stg_del;
+delete from de12.alpa_meta; 
+
+-- команды для заполнения данных для проверки
+insert into de12.alpa_source ( id, val, update_dt ) values ( 1,'F', now() );
+insert into de12.alpa_source ( id, val, update_dt ) values ( 2,'B', now() );
+insert into de12.alpa_source ( id, val, update_dt ) values ( 3,'C', now() );
+insert into de12.alpa_source ( id, val, update_dt ) values ( 4,'D', now() );
+insert into de12.alpa_source ( id, val, update_dt ) values ( 5,'P', now() );
+insert into de12.alpa_source ( id, val, update_dt ) values ( 6,'P+V', now() );
+update de12.alpa_source set val = 'DDD', update_dt = now() where id = 1;
+delete from de12.alpa_source where id = 2;
+
+
+
+--Первоначальное заполение таблицы метаданных
+insert into de12.alpa_meta( schema_name, table_name, max_update_dt )
+values( 'DE12','alpa_SOURCE', to_timestamp('1900-01-01','YYYY-MM-DD') );
+
+
+
+
+----------------------------------------------------------------------------
+-- Инкрементальная загрузка
+
+--Очистка временого харнилища
+delete from de12.alpa_stg;
+--Очистка таблицы с удаленными даными
+delete from de12.alpa_stg_del;
+
+--Вставляем данные из источника во временное хранилище в зависимости max_update_dt в таблице метаданных
+insert into de12.alpa_stg( id, val, update_dt )
+select id, val, update_dt
+from de12.alpa_source
+where update_dt > ( select max_update_dt
+					from de12.alpa_meta 
+					where schema_name='DE12' and table_name='alpa_SOURCE' );
+
+--Вставляем данные(ID) в таблицу с удаленными данными из источника, для проверки на удаление
+insert into de12.alpa_stg_del( id )
+select id from de12.alpa_source;
+
+--Вставляем данные в хранилище из временного хранилища
+insert into de12.alpa_target( id, val, start_dt,end_dt )
+select 
+	stg.id, 
+	stg.val, 
+	stg.update_dt, 
+	to_date('9999-12-31','YYYY-MM-DD')
+from de12.alpa_stg stg
+left join de12.alpa_target tgt
+on stg.id = tgt.id
+where tgt.id is null;
+
+--Обновляем данные в хранилище
+update de12.alpa_target atg
+set 
+	end_dt = tmp.update_dt
+from (
+	select 
+		stg.id,
+		stg.val,
+		stg.update_dt
+	from de12.alpa_stg stg
+	inner join de12.alpa_target tgt
+	on stg.id = tgt.id
+	where   (tgt.end_dt = to_date('9999-12-31','YYYY-MM-DD') and delete_flg= 1)
+			or (stg.val <> tgt.val and tgt.end_dt = to_date('9999-12-31','YYYY-MM-DD'))
+			or ( stg.val is null and tgt.val is not null )
+			or ( stg.val is not null and tgt.val is null ) 
+			or (stg.val is null and tgt.val is null))tmp
+where (atg.id = tmp.id and atg.end_dt = to_date('9999-12-31','YYYY-MM-DD')); 
+
+--Вставляем данные с новыми временными интервалами если были обновления или запись была удалена раньше 
+insert into de12.alpa_target (id,val,start_dt,end_dt)
+select 	stg.id,
+		stg.val,
+		tgt.end_dt,
+		to_date('9999-12-31','YYYY-MM-DD')
+from de12.alpa_target tgt inner join de12.alpa_stg stg on tgt.id = stg.id 
+where  (end_dt <> to_date ('9999-12-31','YYYY-MM-DD') and delete_flg = 0
+	              and stg.val <> tgt.val and tgt.end_dt = stg.update_dt)
+	  or (end_dt <> to_date ('9999-12-31','YYYY-MM-DD') and delete_flg = 1);
+	
+--Обновляем данные если произошло удаление (ставим метку 2 для поиска в таблице)
+update de12.alpa_target tgt
+set end_dt = now (),
+	delete_flg =2
+where id in(select tgt.id
+			from de12.alpa_target tgt
+			left join de12.alpa_stg_del stgd
+			on tgt.id = stgd.id
+			where stgd.id is null) and delete_flg = 0 
+			and end_dt = to_date('9999-12-31','YYYY-MM-DD');
+	  	
+--Вставляем данные с новыми временными интервалами после удаления(ставим метку 1 поиска по системе)
+Insert into de12.alpa_target (id,val,start_dt,end_dt,delete_flg)
+select  tgt.id,
+		tgt.val,
+		tgt.end_dt,
+		to_date('9999-12-31','YYYY-MM-DD'),
+		1
+from de12.alpa_target tgt
+		left join de12.alpa_stg_del stgd
+			on tgt.id = stgd.id
+where end_dt = (select max(end_dt)
+			from de12.alpa_target tgt
+			left join de12.alpa_stg_del stg
+			on stg.id = tgt.id
+			where stg.id is null and delete_flg = 2 );
+
+--Обновляем цифру 2 на 0 		
+update de12.alpa_target tgt
+set delete_flg = 0
+where delete_flg =2;
+
+--Обновляем таблицу метаданных
+update de12.alpa_meta
+set max_update_dt = coalesce((select max( update_dt ) from de12.alpa_stg ), max_update_dt)
+where schema_name='DE12' and table_name = 'alpa_SOURCE';
+
+--Подтверждаем выполение скрипта
+commit;

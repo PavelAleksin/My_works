@@ -1,0 +1,64 @@
+CREATE TABLE de12.alpa_log   --Создание таблицы LOG
+	(dt date,
+	link VARCHAR(50),
+	user_agent VARCHAR(200),
+	region VARCHAR(30));
+
+--DROP TABLE  de12.alpa_log;
+--удаление таблицы LOG
+
+CREATE TABLE de12.alpa_log_report  --Создание таблицы LOG_REPORT
+	(region VARCHAR( 30 ),
+	browser VARCHAR( 10 ));
+
+--DROP TABLE  de12.alpa_log_report; 
+--удаление таблицы LOG_REPORT
+
+
+--Наполняем данными таблицу LOG сортировка по полю DT
+/* 1)Тут не совсем понятно что деласть с значением NULL, как я понял если данные идут в одну запись
+ заносить значение NULL не имеет смысла(но можно INNER JOIN заменить на LEFT JOIN)
+ 2)Не знаю нужно удалять n в конце user_agent или это важно*/
+WITH tab0 AS (WITH tab1 AS(SELECT substr(DATA,1,strpos(DATA,'	')-1)  as ip,
+			to_timestamp(substr(substr(DATA,strpos(DATA,'	')+3),1,strpos(substr(DATA,strpos(DATA,'	')+3),'	')-1),'YYYYMMDDHH24MISS') AS dt,
+			substr(DATA,strpos(DATA,'http'),strpos(substr(DATA,strpos(DATA,'http')),'	')-1)  AS links,
+			reverse(substr(reverse(data),1,strpos(reverse(data),'	')-1))  AS user_agent,
+			substr(reverse(substr(reverse(data),1,strpos(reverse(data),'	')-1)),
+				  1,strpos(reverse(substr(reverse(data),1,strpos(reverse(data),'	')-1)),'/')-1)  AS browser
+		  				 FROM de.log),
+				tab2 AS (SELECT 	substr(DATA,1,strpos(DATA,'	')-1)  AS ip,
+								substr(DATA,strpos(DATA,'	')+1)  region
+					FROM de.ip)
+			SELECT *
+			FROM tab1 as t1 INNER JOIN  tab2 as t2 ON t1.ip=t2.ip)	
+INSERT INTO de12.alpa_log(dt,link,user_agent,region)
+SELECT dt,links,user_agent,region
+FROM tab0
+ORDER BY dt; 
+
+--Наполняем данными таблицу LOG_REPORT сортировка по region
+WITH tab4 AS
+	(WITH tab0 AS 
+		(WITH tab1 AS(SELECT substr(DATA,1,strpos(DATA,'	')-1) as ip,
+			to_timestamp(substr(substr(DATA,strpos(DATA,'	')+3),1,strpos(substr(DATA,strpos(DATA,'	')+3),'	')-1),'YYYYMMDDHH24MISS') AS dt,
+			substr(DATA,strpos(DATA,'http'),strpos(substr(DATA,strpos(DATA,'http')),'	')-1) AS links,
+			reverse(substr(reverse(data),1,strpos(reverse(data),'	')-1))AS user_agent,
+			substr(reverse(substr(reverse(data),1,strpos(reverse(data),'	')-1)),
+				  1,strpos(reverse(substr(reverse(data),1,strpos(reverse(data),'	')-1)),'/')-1) AS browser
+		  				 FROM de.log),
+			 tab2 AS (SELECT 	substr(DATA,1,strpos(DATA,'	')-1) AS ip,
+								substr(DATA,strpos(DATA,'	')+1) AS region
+					FROM de.ip)
+					SELECT *
+					FROM tab1 t1 INNER JOIN  tab2 as t2 ON t1.ip=t2.ip)
+					SELECT region,browser
+					FROM (SELECT region,
+					browser,
+		 				RANK() OVER (PARTITION BY region ORDER BY count(browser) desc)
+					FROM tab0
+					GROUP BY region,browser) AS t
+					WHERE RANK =1)
+INSERT INTO de12.alpa_log_report(region,browser)
+SELECT region,browser
+FROM tab4
+ORDER BY region

@@ -1,0 +1,44 @@
+--удаление таблицы для проверки скрипта
+DROP TABLE IF exists  de12.alpa_salary_hist;
+
+--создаём таблиццу SCD2
+CREATE TABLE de12.alpa_salary_hist(person varchar,
+				   class varchar,
+							salary int,
+							effective_from date,
+							effective_to date); 
+
+--добавляем данные в таблицу SCD2
+INSERT INTO de12.alpa_salary_hist(person,class,salary,effective_from,effective_to) 
+SELECT  person,
+	   class,
+	   salary,
+	   dt as start_dt,
+	   coalesce(((lead (dt,1) over(partition by person order by dt)-interval '1 day')::date),to_date('99991231','yyyymmdd')) as end_dt
+FROM de.histgroup
+;
+
+--удаление таблицы для проверки скрипта
+DROP TABLE IF exists  de12.alpa_SALARY_LOG;
+
+-- Создаем таблицу de12.alpa_SALARY_LOG
+CREATE TABLE de12.alpa_SALARY_LOG (
+							payment_dt date,
+							person varchar,
+							payment int,
+							month_paid int,
+							month_rest int);
+
+--Добавляем данные запроса в таблицу de12.alpa_SALARY_LOG
+INSERT INTO de12.alpa_SALARY_LOG(payment_dt,person,payment,month_paid,month_rest)
+SELECT dt AS payment_dt,
+	  s1.person AS person,
+	  payment,
+	  sum(payment) OVER (PARTITION BY EXTRACT(MONTH FROM dt) ,s1.person ORDER BY  dt) month_paid,
+	  s2.salary-sum(payment) OVER (PARTITION BY EXTRACT(MONTH FROM dt) ,s1.person ORDER BY  dt) AS month_rest
+FROM de.salary_payments s1  LEFT JOIN de12.alpa_salary_hist s2
+	ON s1.dt BETWEEN  s2.effective_from  
+	AND s2.effective_to 
+	AND s1.person=s2.person
+ORDER BY s1.person, s1.dt;
+
